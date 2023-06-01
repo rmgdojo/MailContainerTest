@@ -31,8 +31,7 @@ You should not change the method signature of the MakeMailTransfer method.
 You should add suitable tests into the MailContainerTest.Test project.
 
 #### Note: you must not use Github Copilot, ChatGPT, Google Bard etc to generate code for this exercise.
-#### Code committed should be working and able to be compiled and run on another machine; make sure you have included
-#### all packages / instructions necessary for someone else to run your tests.
+#### Code committed should be working and able to be compiled and run on another machine; make sure you have included all packages / instructions necessary for someone else to run your tests.
 
 There are no additional constraints, use the packages and approach you feel appropriate, aim to spend no more than 2 hours.
 
