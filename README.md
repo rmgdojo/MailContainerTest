@@ -33,7 +33,7 @@ You should add suitable tests into the MailContainerTest.Test project.
 #### Note: you must not use Github Copilot, ChatGPT, Google Bard etc to generate code for this exercise.
 #### Code committed should be working, with passing tests, and able to be compiled and run on another machine; make sure you have referenced all packages / included any instructions necessary for someone else to run your tests.
 
-There are no additional constraints, use the packages and approach you feel appropriate, aim to spend no more than 2 hours, but when planning your time bear in mind that your code needs to run and your tests should pass.
+There are no additional constraints, use the packages and approach you feel appropriate. Aim to spend no more than 2 hours on this exercise, but when planning your time bear in mind that your code needs to run and your tests should pass.
 
 When completed, either submit a pull request to this repository (if you have a Github account), or zip up the completed code and
 send it back to the recruiter who assigned you the test. 
