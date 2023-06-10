@@ -26,9 +26,9 @@ namespace MailContainerTest.Utils
         {
             return mailType switch
             {
-                MailType.StandardLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter),
-                MailType.LargeLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter),
-                MailType.SmallParcel => mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel),
+                MailType.StandardLetter => mailContainer.AllowedMailType.Contains(AllowedMailType.StandardLetter),
+                MailType.LargeLetter => mailContainer.AllowedMailType.Contains(AllowedMailType.LargeLetter),
+                MailType.SmallParcel => mailContainer.AllowedMailType.Contains(AllowedMailType.SmallParcel),
                 _ => false
             };
         }
