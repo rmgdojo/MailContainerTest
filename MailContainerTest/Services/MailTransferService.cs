@@ -1,5 +1,6 @@
 ﻿using MailContainerTest.Data;
 using MailContainerTest.Types;
+using MailContainerTest.Utils;
 using System.Configuration;
 
 namespace MailContainerTest.Services
@@ -8,86 +9,42 @@ namespace MailContainerTest.Services
     {
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
-            var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
+            var dataStoreType = ConfigurationManager.AppSettings[Constants.DATASTORE_NAME];
 
-            MailContainer mailContainer = null;
+            //If the Data Store does not exixt, then return failed transfer result
+            if(dataStoreType == null)
+                return new MakeMailTransferResult { Success = false };
 
-            if (dataStoreType == "Backup")
-            {
-                var mailContainerDataStore = new BackupMailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
+            /* Get the Mail Containter with the Container number from either tha backup store or main store
+             * NB: The initial code was validating the Source Containter as the target, however, I have refactored this to validate 
+             * the both the Source Container and the Destination containter. The only validation for the Source Container (in this case) is to check
+             * if it exist
+             */
+            MailContainer sourceMailContainer = MailHelper.GetContainerFromContainter(Constants.BACKUP_DATASTORE_TYPE, request.SourceMailContainerNumber);
 
-            } else
-            {
-                var mailContainerDataStore = new MailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
-            }
+            //If there are no container or the container is not in operation, abort transfer process
+            //as we cannot transfer from a container that is not in operation.
+            if (sourceMailContainer == null || sourceMailContainer?.Status != MailContainerStatus.Operational)
+                return new MakeMailTransferResult { Success = false };
 
-            var result = new MakeMailTransferResult();
 
-            switch (request.MailType)
-            {
-                case MailType.StandardLetter:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter))
-                    {
-                        result.Success = false;
-                    }
-                    break;
+            MailContainer destinationMailContainer = MailHelper.GetContainerFromContainter(Constants.BACKUP_DATASTORE_TYPE, request.DestinationMailContainerNumber);
 
-                case MailType.LargeLetter:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter))
-                    {
-                        result.Success = false;
-                    }
-                    else if (mailContainer.Capacity < request.NumberOfMailItems)
-                    {
-                        result.Success = false;
-                    }
-                    break;
+            //If there are no container or the container is not in operation, abort transfer process
+            if (destinationMailContainer == null || destinationMailContainer?.Status != MailContainerStatus.Operational)
+                return new MakeMailTransferResult { Success = false };
 
-                case MailType.SmallParcel:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel))
-                    {
-                        result.Success = false;
+            //If the mail type is not in the allowed mail type for this container, abort transfer.
+            if(!MailHelper.IsAllowedMailType(request.MailType, destinationMailContainer))
+                return new MakeMailTransferResult { Success = false };
 
-                    }
-                    else if (mailContainer.Status != MailContainerStatus.Operational)
-                    {
-                        result.Success = false;
-                    }
-                    break;
-            }
-
-            if (result.Success)
-            {
-                mailContainer.Capacity -= request.NumberOfMailItems;
-
-                if (dataStoreType == "Backup")
-                {
-                    var mailContainerDataStore = new BackupMailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
-
-                }
-                else
-                {
-                    var mailContainerDataStore = new MailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
-                }
-            }
-
-            return result;
+            //All conditions are stisfied, we can tranfer the mails and update accordingly
+            bool transferResult = MailHelper.UpdateContainerInStore(Constants.BACKUP_DATASTORE_TYPE, request.NumberOfMailItems, sourceMailContainer, destinationMailContainer);
+            
+            return transferResult == true ? 
+                new MakeMailTransferResult { Success = true } : 
+                new MakeMailTransferResult { Success = false };          
+            
         }
     }
 }

@@ -1,18 +1,14 @@
 ﻿using MailContainerTest.Data;
 using MailContainerTest.Types;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace MailContainerTest.Utils
 {
     public static class MailHelper
     {
-        public static MailContainer GetMailFromContainter(string dataStoreType, string containerNumber)
+        public static MailContainer GetContainerFromContainter(string dataStoreType, string containerNumber)
         {
-            if (dataStoreType == "Backup")
+            if (dataStoreType == Constants.BACKUP_DATASTORE_TYPE)
             {
                 var mailContainerDataStore = new BackupMailContainerDataStore();
                 return mailContainerDataStore.GetMailContainer(containerNumber);
@@ -35,6 +31,38 @@ namespace MailContainerTest.Utils
                 MailType.SmallParcel => mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel),
                 _ => false
             };
+        }
+
+        public static bool UpdateContainerInStore(string dataStoreType, int numberOfMailItems, MailContainer sourceMailContainer, MailContainer destinationMailContainer)
+        {
+            try
+            {
+                destinationMailContainer.Capacity += numberOfMailItems;
+                sourceMailContainer.Capacity -= numberOfMailItems;
+
+                if (dataStoreType == Constants.BACKUP_DATASTORE_TYPE)
+                {
+                    var mailContainerDataStore = new BackupMailContainerDataStore();
+                    mailContainerDataStore.UpdateMailContainer(sourceMailContainer);
+                    mailContainerDataStore.UpdateMailContainer(destinationMailContainer);
+
+                }
+                else
+                {
+                    var mailContainerDataStore = new MailContainerDataStore();
+                    mailContainerDataStore.UpdateMailContainer(sourceMailContainer);
+                    mailContainerDataStore.UpdateMailContainer(destinationMailContainer);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                //Log Error (Somewhere)
+                Debug.WriteLine(ex);
+            }
+
+            return false;
         }
     }
 
