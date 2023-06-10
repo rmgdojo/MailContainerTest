@@ -24,5 +24,18 @@ namespace MailContainerTest.Utils
                 return mailContainerDataStore.GetMailContainer(containerNumber);
             }
         }
+
+
+        public static bool IsAllowedMailType(MailType mailType, MailContainer mailContainer)
+        {
+            return mailType switch
+            {
+                MailType.StandardLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter),
+                MailType.LargeLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter),
+                MailType.SmallParcel => mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel),
+                _ => false
+            };
+        }
     }
+
 }
