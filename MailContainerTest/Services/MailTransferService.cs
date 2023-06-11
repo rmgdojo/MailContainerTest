@@ -1,5 +1,6 @@
 ﻿using MailContainerTest.Data;
 using MailContainerTest.Types;
+using Microsoft.Extensions.Configuration;
 using System.Configuration;
 
 namespace MailContainerTest.Services
