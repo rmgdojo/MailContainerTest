@@ -23,34 +23,16 @@ namespace MailContainerTest.Tests
 
         private Mock<IMailContainerDataStore> _mockMailContainerStore;
 
-        private Mock<IConfiguration> _mockConfiguration;
-
         [TestInitialize]
         public void Initialise()
         {
             _mockMailContainerStoreProvider = new Mock<IMailContainerStoreProvider>();
             _mockMailContainerStore = new Mock<IMailContainerDataStore>();
-            _mockConfiguration = new Mock<IConfiguration>();
 
-            _mockMailContainerStoreProvider.Setup(x => x.GetDataStoreForType(It.IsAny<string>()))
+            _mockMailContainerStoreProvider.Setup(x => x.GetDataStore())
                 .Returns(_mockMailContainerStore.Object);
 
-            _service = new MailTransferService(_mockMailContainerStoreProvider.Object, _mockConfiguration.Object);
-        }
-
-        [DataTestMethod]
-        [DataRow("Backup")]
-        [DataRow("Normal")]
-        public void MailTransferService_Ctr_ShouldGetCorrectDataStore(string dataStoreType)
-        {
-            // Arrange
-            _mockConfiguration.SetupGet(p => p["DataStoreType"]).Returns(dataStoreType);
-
-            // Act
-            _service = new MailTransferService(_mockMailContainerStoreProvider.Object, _mockConfiguration.Object);
-
-            // Assert
-            _mockMailContainerStoreProvider.Verify(x => x.GetDataStoreForType(dataStoreType), Times.Once());
+            _service = new MailTransferService(_mockMailContainerStoreProvider.Object);
         }
 
         [TestMethod]

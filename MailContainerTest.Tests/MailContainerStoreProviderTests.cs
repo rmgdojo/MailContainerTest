@@ -1,6 +1,8 @@
 ﻿using MailContainerTest.Data;
 using MailContainerTest.Providers;
+using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -14,11 +16,12 @@ namespace MailContainerTest.Tests
     public class MailContainerStoreProviderTests
     {
         private MailContainerStoreProvider _provider;
+        private Mock<IConfiguration> _mockConfiguration;
 
         [TestInitialize]
         public void Initialise()
         {
-            _provider = new MailContainerStoreProvider();
+            _mockConfiguration = new Mock<IConfiguration>();
         }
 
         [DataTestMethod]
@@ -27,10 +30,11 @@ namespace MailContainerTest.Tests
         public void MakeMailTransfer_ShouldLookupCorrectDataStore(string dataStoreType, Type desiredStore)
         {
             // Arrange
-            ConfigurationManager.AppSettings["DataStoreType"] = dataStoreType;
+            _mockConfiguration.SetupGet(p => p["DataStoreType"]).Returns(dataStoreType);
+            _provider = new MailContainerStoreProvider(_mockConfiguration.Object);
 
             // Act
-            var dataStore = _provider.GetDataStoreForType(dataStoreType);
+            var dataStore = _provider.GetDataStore();
 
             // Assert
             Assert.IsInstanceOfType(dataStore, desiredStore);
