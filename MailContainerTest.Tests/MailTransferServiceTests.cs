@@ -2,6 +2,7 @@
 using MailContainerTest.Providers;
 using MailContainerTest.Services;
 using MailContainerTest.Types;
+using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using System;
@@ -22,36 +23,34 @@ namespace MailContainerTest.Tests
 
         private Mock<IMailContainerDataStore> _mockMailContainerStore;
 
+        private Mock<IConfiguration> _mockConfiguration;
+
         [TestInitialize]
         public void Initialise()
         {
-            this._mockMailContainerStoreProvider = new Mock<IMailContainerStoreProvider>();
-            this._mockMailContainerStore = new Mock<IMailContainerDataStore>();
-            this._service = new MailTransferService(_mockMailContainerStoreProvider.Object);
+            _mockMailContainerStoreProvider = new Mock<IMailContainerStoreProvider>();
+            _mockMailContainerStore = new Mock<IMailContainerDataStore>();
+            _mockConfiguration = new Mock<IConfiguration>();
+
+            _mockMailContainerStoreProvider.Setup(x => x.GetDataStoreForType(It.IsAny<string>()))
+                .Returns(_mockMailContainerStore.Object);
+
+            _service = new MailTransferService(_mockMailContainerStoreProvider.Object, _mockConfiguration.Object);
         }
 
         [DataTestMethod]
         [DataRow("Backup")]
-        [DataRow("Other")]
-        public void MakeMailTransfer_ShouldLookupCorrectDataStore(string dataStoreType)
+        [DataRow("Normal")]
+        public void MailTransferService_Ctr_ShouldGetCorrectDataStore(string dataStoreType)
         {
             // Arrange
-            ConfigurationManager.AppSettings["DataStoreType"] = dataStoreType;
-
-            var request = new MakeMailTransferRequest
-            {
-                SourceMailContainerNumber = "1",
-                DestinationMailContainerNumber = "2",
-                NumberOfMailItems = 1,
-                TransferDate = DateTime.UtcNow,
-                MailType = MailType.SmallParcel
-            };
+            _mockConfiguration.SetupGet(p => p["DataStoreType"]).Returns(dataStoreType);
 
             // Act
-            _service.MakeMailTransfer(request);
+            _service = new MailTransferService(_mockMailContainerStoreProvider.Object, _mockConfiguration.Object);
 
             // Assert
-            this._mockMailContainerStoreProvider.Verify(x => x.GetDataStoreForType(dataStoreType), Times.Once);
+            _mockMailContainerStoreProvider.Verify(x => x.GetDataStoreForType(dataStoreType), Times.Once());
         }
 
         [TestMethod]
@@ -67,22 +66,15 @@ namespace MailContainerTest.Tests
                 MailType = MailType.SmallParcel
             };
 
-            var mockMailContainerStore = new Mock<IMailContainerDataStore>();
-            _mockMailContainerStoreProvider.Setup(x => x.GetDataStoreForType(It.IsAny<string>()))
-                .Returns(mockMailContainerStore.Object);
-
             // Act
             _service.MakeMailTransfer(request);
 
             // Assert
-            mockMailContainerStore.Verify(x => x.GetMailContainer(request.SourceMailContainerNumber), Times.Once);
+            _mockMailContainerStore.Verify(x => x.GetMailContainer(request.SourceMailContainerNumber), Times.Once);
         }
 
-        [DataTestMethod]
-        [DataRow(MailType.LargeLetter, AllowedMailType.LargeLetter)]
-        [DataRow(MailType.StandardLetter, AllowedMailType.StandardLetter)]
-        [DataRow(MailType.SmallParcel, AllowedMailType.SmallParcel)]
-        public void MakeMailTransfer_ShouldAllowTransferToAllowedMailTypes(MailType requestMailType, AllowedMailType allowedMailType)
+        [TestMethod]
+        public void MakeMailTransfer_ShouldGetDestinationContainer()
         {
             // Arrange
             var request = new MakeMailTransferRequest
@@ -91,18 +83,50 @@ namespace MailContainerTest.Tests
                 DestinationMailContainerNumber = "2",
                 NumberOfMailItems = 1,
                 TransferDate = DateTime.UtcNow,
-                MailType = requestMailType
+                MailType = MailType.SmallParcel
             };
 
-            var desiredContainer = new MailContainer
+            // Act
+            _service.MakeMailTransfer(request);
+
+            // Assert
+            _mockMailContainerStore.Verify(x => x.GetMailContainer(request.DestinationMailContainerNumber), Times.Once);
+        }
+
+        [DataTestMethod]
+        [DataRow(MailType.LargeLetter)]
+        [DataRow(MailType.StandardLetter)]
+        [DataRow(MailType.SmallParcel)]
+        public void MakeMailTransfer_Valid_ShouldAllowTransfer(MailType mailtype)
+        {
+            // Arrange
+            var request = new MakeMailTransferRequest
             {
-                MailContainerNumber = "1",
-                Capacity = 999,
-                Status = MailContainerStatus.Operational,
-                AllowedMailType = allowedMailType
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = mailtype
             };
 
-            this.MockMailContainerResponse(desiredContainer);
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = mailtype
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = mailtype
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
 
             // Act
             var result = _service.MakeMailTransfer(request);
@@ -112,10 +136,10 @@ namespace MailContainerTest.Tests
         }
 
         [DataTestMethod]
-        [DataRow(MailType.LargeLetter, AllowedMailType.LargeLetter)]
-        [DataRow(MailType.StandardLetter, AllowedMailType.StandardLetter)]
-        [DataRow(MailType.SmallParcel, AllowedMailType.SmallParcel)]
-        public void MakeMailTransfer_ShouldUpdateMailContainerForAllowedMailTypes(MailType requestMailType, AllowedMailType allowedMailType)
+        [DataRow(MailType.LargeLetter)]
+        [DataRow(MailType.StandardLetter)]
+        [DataRow(MailType.SmallParcel)]
+        public void MakeMailTransfer_Valid_ShouldUpdateSourceMailContainer(MailType mailType)
         {
             // Arrange
             var request = new MakeMailTransferRequest
@@ -124,111 +148,82 @@ namespace MailContainerTest.Tests
                 DestinationMailContainerNumber = "2",
                 NumberOfMailItems = 1,
                 TransferDate = DateTime.UtcNow,
-                MailType = requestMailType
+                MailType = mailType
             };
 
-            var desiredContainer = new MailContainer
+            var sourceContainer = new MailContainer
             {
-                MailContainerNumber = "1",
+                MailContainerNumber = request.SourceMailContainerNumber,
                 Capacity = 999,
                 Status = MailContainerStatus.Operational,
-                AllowedMailType = allowedMailType
+                AllowedMailType = mailType
             };
 
-            this.MockMailContainerResponse(desiredContainer);
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 999,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = mailType
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
 
             // Act
             _service.MakeMailTransfer(request);
 
             // Assert
-            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(It.Is<MailContainer>(y => y.MailContainerNumber == desiredContainer.MailContainerNumber 
-                                                                        && y.Capacity == desiredContainer.Capacity 
-                                                                        && y.Status == desiredContainer.Status
-                                                                        && y.AllowedMailType == desiredContainer.AllowedMailType)
-                ), Times.Once);
-        }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        [DataTestMethod]
-        [DataRow(MailContainerStatus.NoTransfersIn)]
-        [DataRow(MailContainerStatus.OutOfService)]
-        public void MakeMailTransfer_ShouldNotAllowTransferToNonOperationalMailContainers(MailContainerStatus containerStatus)
-        {
-            // Arrange
-            var request = new MakeMailTransferRequest
-            {
-                SourceMailContainerNumber = "1",
-                DestinationMailContainerNumber = "2",
-                NumberOfMailItems = 1,
-                TransferDate = DateTime.UtcNow,
-                MailType = MailType.StandardLetter
-            };
-
-            var desiredContainer = new MailContainer
-            {
-                MailContainerNumber = "1",
-                Capacity = 999,
-                Status = containerStatus,
-                AllowedMailType = AllowedMailType.StandardLetter
-            };
-
-            MockMailContainerResponse(desiredContainer);
-
-            // Act
-            var result = _service.MakeMailTransfer(request);
-
-            // Assert
-            Assert.IsFalse(result.Success);
-        }
-
-        [TestMethod]
-        public void MakeMailTransfer_ShouldNotAllowTransferToMailContainersWithoutCapacity()
-        {
-            // Arrange
-            var request = new MakeMailTransferRequest
-            {
-                SourceMailContainerNumber = "1",
-                DestinationMailContainerNumber = "2",
-                NumberOfMailItems = 1,
-                TransferDate = DateTime.UtcNow,
-                MailType = MailType.StandardLetter
-            };
-
-            var desiredContainer = new MailContainer
-            {
-                MailContainerNumber = "1",
-                Capacity = 0,
-                Status = MailContainerStatus.Operational,
-                AllowedMailType = AllowedMailType.StandardLetter
-            };
-
-            MockMailContainerResponse(desiredContainer);
-
-            // Act
-            var result = _service.MakeMailTransfer(request);
-
-            // Assert
-            Assert.IsFalse(result.Success);
+            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(sourceContainer), Times.Once);
         }
 
         [DataTestMethod]
         [DataRow(MailType.LargeLetter)]
         [DataRow(MailType.StandardLetter)]
         [DataRow(MailType.SmallParcel)]
-        public void MakeMailTransfer_ShouldUpdateMailContainer(MailType requestMailType)
+        public void MakeMailTransfer_Valid_ShouldUpdateDestinationMailContainer(MailType mailType)
+        {
+            // Arrange
+            var request = new MakeMailTransferRequest
+            {
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = mailType
+            };
+
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = 999,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = mailType
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 999,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = mailType
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
+
+            // Act
+            _service.MakeMailTransfer(request);
+
+            // Assert
+            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(destinationContainer), Times.Once);
+        }
+
+        [DataTestMethod]
+        [DataRow(MailType.LargeLetter)]
+        [DataRow(MailType.StandardLetter)]
+        [DataRow(MailType.SmallParcel)]
+        public void MakeMailTransfer_Valid_ShouldDecrementSourceContainer(MailType requestMailType)
         {
             // Arrange
             var request = new MakeMailTransferRequest
@@ -240,29 +235,347 @@ namespace MailContainerTest.Tests
                 MailType = requestMailType
             };
 
-            var desiredContainer = new MailContainer
+            var sourceContainerQty = new Random().Next();
+            var destinationContainerQty = new Random().Next();
+
+            var sourceContainer = new MailContainer
             {
-                MailContainerNumber = "1",
-                Capacity = 9999,
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = sourceContainerQty,
                 Status = MailContainerStatus.Operational,
-                AllowedMailType = AllowedMailType.StandardLetter
+                AllowedMailType = requestMailType
             };
 
-            MockMailContainerResponse(desiredContainer);
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = destinationContainerQty,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = requestMailType
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
 
             // Act
             var result = _service.MakeMailTransfer(request);
 
             // Assert
-            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(desiredContainer), Times.Once);
+            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(It.Is<MailContainer>(y => y.Status == sourceContainer.Status
+               && y.MailContainerNumber == sourceContainer.MailContainerNumber
+               && y.AllowedMailType == sourceContainer.AllowedMailType
+               && y.Capacity == (sourceContainerQty - request.NumberOfMailItems)))
+                , Times.Once);
         }
 
-        private void MockMailContainerResponse(MailContainer container)
+        [DataTestMethod]
+        [DataRow(MailType.LargeLetter)]
+        [DataRow(MailType.StandardLetter)]
+        [DataRow(MailType.SmallParcel)]
+        public void MakeMailTransfer_Valid_ShouldIncrementDestinationContainer(MailType requestMailType)
         {
-            this._mockMailContainerStore.Setup(x => x.GetMailContainer(It.IsAny<string>())).Returns(container);
+            // Arrange
+            var request = new MakeMailTransferRequest
+            {
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = requestMailType
+            };
 
-            _mockMailContainerStoreProvider.Setup(x => x.GetDataStoreForType(It.IsAny<string>()))
-                .Returns(this._mockMailContainerStore.Object);
+            var sourceContainerQty = new Random().Next();
+            var destinationContainerQty = new Random().Next();
+
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = sourceContainerQty,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = requestMailType
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = destinationContainerQty,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = requestMailType
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
+
+            // Act
+            var result = _service.MakeMailTransfer(request);
+
+            // Assert
+            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(It.Is<MailContainer>(y => y.Status == destinationContainer.Status
+               && y.MailContainerNumber == destinationContainer.MailContainerNumber
+               && y.AllowedMailType == destinationContainer.AllowedMailType
+               && y.Capacity == (destinationContainerQty + request.NumberOfMailItems)))
+                , Times.Once);
+        }
+
+        [DataTestMethod]
+        [DataRow(MailType.LargeLetter, MailType.StandardLetter)]
+        [DataRow(MailType.LargeLetter, MailType.SmallParcel)]
+        [DataRow(MailType.StandardLetter, MailType.LargeLetter)]
+        [DataRow(MailType.StandardLetter, MailType.SmallParcel)]
+        [DataRow(MailType.SmallParcel, MailType.LargeLetter)]
+        [DataRow(MailType.SmallParcel, MailType.StandardLetter)]
+        public void MakeMailTransfer_Invalid_TransferBetweenMailTypes_ShouldReturnFalse(MailType sourceMailtype, MailType destinationMailType)
+        {
+            // Arrange
+            var request = new MakeMailTransferRequest
+            {
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = sourceMailtype
+            };
+
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = sourceMailtype
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = destinationMailType
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
+
+            // Act
+            var result = _service.MakeMailTransfer(request);
+
+            // Assert
+            Assert.IsFalse(result.Success);
+        }
+
+        [DataTestMethod]
+        [DataRow(MailType.LargeLetter, MailType.StandardLetter)]
+        [DataRow(MailType.LargeLetter, MailType.SmallParcel)]
+        [DataRow(MailType.StandardLetter, MailType.LargeLetter)]
+        [DataRow(MailType.StandardLetter, MailType.SmallParcel)]
+        [DataRow(MailType.SmallParcel, MailType.LargeLetter)]
+        [DataRow(MailType.SmallParcel, MailType.StandardLetter)]
+        public void MakeMailTransfer_Invalid_TransferBetweenMailTypes_ShouldNotUpdateContainers(MailType sourceMailtype, MailType destinationMailType)
+        {
+            // Arrange
+            var request = new MakeMailTransferRequest
+            {
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = sourceMailtype
+            };
+
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = sourceMailtype
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = destinationMailType
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
+
+            // Act
+            _service.MakeMailTransfer(request);
+
+            // Assert
+            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(It.IsAny<MailContainer>()), Times.Never);
+        }
+
+        [DataTestMethod]
+        [DataRow(MailContainerStatus.NoTransfersIn)]
+        [DataRow(MailContainerStatus.OutOfService)]
+        public void MakeMailTransfer_Invalid_SourceContainerNotOperational_ShouldReturnFalse(MailContainerStatus containerStatus)
+        {
+            // Arrange
+            var request = new MakeMailTransferRequest
+            {
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = MailType.StandardLetter
+            };
+
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = 1,
+                Status = containerStatus,
+                AllowedMailType = MailType.StandardLetter
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = MailType.StandardLetter
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
+
+            // Act
+            var result = _service.MakeMailTransfer(request);
+
+            // Assert
+            Assert.IsFalse(result.Success);
+        }
+
+        [DataTestMethod]
+        [DataRow(MailContainerStatus.NoTransfersIn)]
+        [DataRow(MailContainerStatus.OutOfService)]
+        public void MakeMailTransfer_Invalid_SourceContainerNotOperational_ShouldNotUpdateContainers(MailContainerStatus containerStatus)
+        {
+            // Arrange
+            var request = new MakeMailTransferRequest
+            {
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = MailType.StandardLetter
+            };
+
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = 1,
+                Status = containerStatus,
+                AllowedMailType = MailType.StandardLetter
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = MailType.StandardLetter
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
+
+            // Act
+            var result = _service.MakeMailTransfer(request);
+
+            // Assert
+            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(It.IsAny<MailContainer>()), Times.Never);
+        }
+
+        [DataTestMethod]
+        [DataRow(MailContainerStatus.NoTransfersIn)]
+        [DataRow(MailContainerStatus.OutOfService)]
+        public void MakeMailTransfer_Invalid_DestinationContainerNotOperational_ShouldReturnFalse(MailContainerStatus containerStatus)
+        {
+            // Arrange
+            var request = new MakeMailTransferRequest
+            {
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = MailType.StandardLetter
+            };
+
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = MailType.StandardLetter
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 1,
+                Status = containerStatus,
+                AllowedMailType = MailType.StandardLetter
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
+
+            // Act
+            var result = _service.MakeMailTransfer(request);
+
+            // Assert
+            Assert.IsFalse(result.Success);
+        }
+
+        [DataTestMethod]
+        [DataRow(MailContainerStatus.NoTransfersIn)]
+        [DataRow(MailContainerStatus.OutOfService)]
+        public void MakeMailTransfer_Invalid_DestinationContainerNotOperational_ShouldNotUpdateContainers(MailContainerStatus containerStatus)
+        {
+            // Arrange
+            var request = new MakeMailTransferRequest
+            {
+                SourceMailContainerNumber = "1",
+                DestinationMailContainerNumber = "2",
+                NumberOfMailItems = 1,
+                TransferDate = DateTime.UtcNow,
+                MailType = MailType.StandardLetter
+            };
+
+            var sourceContainer = new MailContainer
+            {
+                MailContainerNumber = request.SourceMailContainerNumber,
+                Capacity = 1,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = MailType.StandardLetter
+            };
+
+            var destinationContainer = new MailContainer
+            {
+                MailContainerNumber = request.DestinationMailContainerNumber,
+                Capacity = 1,
+                Status = containerStatus,
+                AllowedMailType = MailType.StandardLetter
+            };
+
+            MockMailContainerResponseForContainerNumber(sourceContainer);
+            MockMailContainerResponseForContainerNumber(destinationContainer);
+
+            // Act
+            var result = _service.MakeMailTransfer(request);
+
+            // Assert
+            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(It.IsAny<MailContainer>()), Times.Never);
+        }
+
+
+
+        private void MockMailContainerResponseForContainerNumber(MailContainer container)
+        {
+            _mockMailContainerStore.Setup(x => x.GetMailContainer(container.MailContainerNumber)).Returns(container);
         }
     }
 }

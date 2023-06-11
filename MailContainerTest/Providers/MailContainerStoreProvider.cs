@@ -11,7 +11,7 @@ namespace MailContainerTest.Providers
     {
         public IMailContainerDataStore GetDataStoreForType(string type)
         {
-            if (type == "DataStoreType")
+            if (type == "Backup")
             {
                 return new BackupMailContainerDataStore();
             }
