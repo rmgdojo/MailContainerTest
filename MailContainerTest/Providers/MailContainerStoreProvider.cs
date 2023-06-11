@@ -1,4 +1,5 @@
 ﻿using MailContainerTest.Data;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,9 +10,16 @@ namespace MailContainerTest.Providers
 {
     public class MailContainerStoreProvider : IMailContainerStoreProvider
     {
-        public IMailContainerDataStore GetDataStoreForType(string type)
+        private string _dataStoreType;
+
+        public MailContainerStoreProvider(IConfiguration configuration)
         {
-            if (type == "Backup")
+            _dataStoreType = configuration["DataStoreType"];
+        }
+
+        public IMailContainerDataStore GetDataStore()
+        {
+            if (_dataStoreType == "Backup")
             {
                 return new BackupMailContainerDataStore();
             }

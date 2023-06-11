@@ -11,13 +11,11 @@ namespace MailContainerTest.Services
         private IMailContainerStoreProvider _mailContainerStoreProvider;
         private IMailContainerDataStore _mailContainerDataStore;
 
-        public MailTransferService(IMailContainerStoreProvider mailContainerStoreProvider, IConfiguration configuration)
+        public MailTransferService(IMailContainerStoreProvider mailContainerStoreProvider)
         {
-            var dataStoreType = configuration["DataStoreType"];
-
             _mailContainerStoreProvider = mailContainerStoreProvider;
 
-            _mailContainerDataStore = _mailContainerStoreProvider.GetDataStoreForType(dataStoreType);
+            _mailContainerDataStore = _mailContainerStoreProvider.GetDataStore();
         }
 
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
