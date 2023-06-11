@@ -163,10 +163,9 @@ namespace MailContainerTest.Tests
 
 
         [DataTestMethod]
-        [DataRow(MailType.LargeLetter)]
-        [DataRow(MailType.StandardLetter)]
-        [DataRow(MailType.SmallParcel)]
-        public void MakeMailTransfer_ShouldNotAllowTransferToNonOperationalMailContainers(MailType requestMailType)
+        [DataRow(MailContainerStatus.NoTransfersIn)]
+        [DataRow(MailContainerStatus.OutOfService)]
+        public void MakeMailTransfer_ShouldNotAllowTransferToNonOperationalMailContainers(MailContainerStatus containerStatus)
         {
             // Arrange
             var request = new MakeMailTransferRequest
@@ -175,13 +174,18 @@ namespace MailContainerTest.Tests
                 DestinationMailContainerNumber = "2",
                 NumberOfMailItems = 1,
                 TransferDate = DateTime.UtcNow,
-                MailType = requestMailType
+                MailType = MailType.StandardLetter
             };
 
-            // need to mock mail container 
-            // container needs to be non operational
-            // container needs to have capacity
-            // container must accept correct mail type
+            var desiredContainer = new MailContainer
+            {
+                MailContainerNumber = "1",
+                Capacity = 999,
+                Status = containerStatus,
+                AllowedMailType = AllowedMailType.StandardLetter
+            };
+
+            MockMailContainerResponse(desiredContainer);
 
             // Act
             var result = _service.MakeMailTransfer(request);
@@ -190,11 +194,8 @@ namespace MailContainerTest.Tests
             Assert.IsFalse(result.Success);
         }
 
-        [DataTestMethod]
-        [DataRow(MailType.LargeLetter)]
-        [DataRow(MailType.StandardLetter)]
-        [DataRow(MailType.SmallParcel)]
-        public void MakeMailTransfer_ShouldNotAllowTransferToMailContainersWithoutCapacity(MailType requestMailType)
+        [TestMethod]
+        public void MakeMailTransfer_ShouldNotAllowTransferToMailContainersWithoutCapacity()
         {
             // Arrange
             var request = new MakeMailTransferRequest
@@ -203,13 +204,18 @@ namespace MailContainerTest.Tests
                 DestinationMailContainerNumber = "2",
                 NumberOfMailItems = 1,
                 TransferDate = DateTime.UtcNow,
-                MailType = requestMailType
+                MailType = MailType.StandardLetter
             };
 
-            // need to mock mail container 
-            // container needs to be operational
-            // container needs to NOT have capacity
-            // container must accept correct mail type
+            var desiredContainer = new MailContainer
+            {
+                MailContainerNumber = "1",
+                Capacity = 0,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = AllowedMailType.StandardLetter
+            };
+
+            MockMailContainerResponse(desiredContainer);
 
             // Act
             var result = _service.MakeMailTransfer(request);
@@ -234,19 +240,22 @@ namespace MailContainerTest.Tests
                 MailType = requestMailType
             };
 
-            // need to mock mail container 
-            // container needs to be operational
-            // container needs to NOT have capacity
-            // container must accept correct mail type
+            var desiredContainer = new MailContainer
+            {
+                MailContainerNumber = "1",
+                Capacity = 9999,
+                Status = MailContainerStatus.Operational,
+                AllowedMailType = AllowedMailType.StandardLetter
+            };
+
+            MockMailContainerResponse(desiredContainer);
 
             // Act
             var result = _service.MakeMailTransfer(request);
 
             // Assert
-            
-            // cannot verify at present
+            _mockMailContainerStore.Verify(x => x.UpdateMailContainer(desiredContainer), Times.Once);
         }
-
 
         private void MockMailContainerResponse(MailContainer container)
         {
