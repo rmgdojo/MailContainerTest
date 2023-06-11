@@ -70,7 +70,7 @@ namespace MailContainerTest.Tests
             var result = _service.MakeMailTransfer(request);
 
             // Assert
-            Assert.IsFalse(result.Success);
+            Assert.IsTrue(result.Success);
         }
 
         [DataTestMethod]
