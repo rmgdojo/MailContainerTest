@@ -1,4 +1,5 @@
 ﻿using MailContainerTest.Data;
+using MailContainerTest.Providers;
 using MailContainerTest.Types;
 using Microsoft.Extensions.Configuration;
 using System.Configuration;
@@ -7,24 +8,27 @@ namespace MailContainerTest.Services
 {
     public class MailTransferService : IMailTransferService
     {
+        private IMailContainerStoreProvider _mailContainerStoreProvider;
+
+        public MailTransferService(IMailContainerStoreProvider mailContainerStoreProvider)
+        {
+            this._mailContainerStoreProvider = mailContainerStoreProvider;
+        }
+
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
             var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
 
             MailContainer mailContainer = null;
 
-            if (dataStoreType == "Backup")
-            {
-                var mailContainerDataStore = new BackupMailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
+            var mailContainerDataStore = this._mailContainerStoreProvider.GetDataStoreForType(dataStoreType);
 
-            } else
-            {
-                var mailContainerDataStore = new MailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
-            }
+            mailContainer = mailContainerDataStore?.GetMailContainer(request.SourceMailContainerNumber);
 
-            var result = new MakeMailTransferResult();
+            var result = new MakeMailTransferResult()
+            {
+                Success = true
+            };
 
             switch (request.MailType)
             {
@@ -74,18 +78,7 @@ namespace MailContainerTest.Services
             if (result.Success)
             {
                 mailContainer.Capacity -= request.NumberOfMailItems;
-
-                if (dataStoreType == "Backup")
-                {
-                    var mailContainerDataStore = new BackupMailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
-
-                }
-                else
-                {
-                    var mailContainerDataStore = new MailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
-                }
+                mailContainerDataStore.UpdateMailContainer(mailContainer);
             }
 
             return result;
