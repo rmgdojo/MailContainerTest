@@ -25,7 +25,7 @@ namespace MailContainerTest.Tests.Services
         }
 
         [Test]
-        public void MakeMailTransfer_AllDetailsProvided_ReturnsFalse()
+        public void MakeMailTransferInvoked_CalledCorrectly()
         {
             //Arrange
             ConfigurationManager.AppSettings["DataStoreType"] = "Backup";
@@ -39,7 +39,7 @@ namespace MailContainerTest.Tests.Services
 
         [TestCase("Backup")]
         [TestCase("New One")]
-        public void GetMailContainerFromDataStoreType_WhenDataStoreTypeHasAValue_ReturnsNotNull(string dataStoreType)
+        public void GetMailContainerFromDataStoreType_DataStoreTypeHasASpecificValue_ReturnsNotNull(string dataStoreType)
         {
             //Arrange
             object[] parameters = { new MakeMailTransferRequest(), dataStoreType };
@@ -84,7 +84,7 @@ namespace MailContainerTest.Tests.Services
         }
 
         [Test]
-        public void IsTheContainerInValidState_StandardMailTypeIsProvidedWithAllowedMailType_ReturnsFalse()
+        public void IsTheContainerInValidState_StandardMailTypeIsProvidedWithAllowedMailType_ReturnsTrue()
         {
             //Arrange
             object[] parameters = {

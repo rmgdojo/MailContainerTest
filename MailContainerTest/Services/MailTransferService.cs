@@ -23,7 +23,7 @@ namespace MailContainerTest.Services
             return result;
         }
 
-        private MailContainer GetMailContainerFromDataStoreType(MakeMailTransferRequest request, string? dataStoreType)
+        private static MailContainer GetMailContainerFromDataStoreType(MakeMailTransferRequest request, string? dataStoreType)
         {
             MailContainer mailContainer = null;
 
@@ -41,7 +41,7 @@ namespace MailContainerTest.Services
             return mailContainer;
         }
 
-        private bool IsTheContainerInValidState(MakeMailTransferRequest request, MailContainer mailContainer)
+        private static bool IsTheContainerInValidState(MakeMailTransferRequest request, MailContainer mailContainer)
         {
             if (mailContainer == null) return false;
 
@@ -81,7 +81,7 @@ namespace MailContainerTest.Services
             return isTheContainerInValidState;
         }
 
-        private int UpdateContainerCapacity(MakeMailTransferRequest request, MailContainer mailContainer, string? dataStoreType)
+        private static int UpdateContainerCapacity(MakeMailTransferRequest request, MailContainer mailContainer, string? dataStoreType)
         {
             mailContainer.Capacity -= request.NumberOfMailItems;
 
