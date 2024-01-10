@@ -15,11 +15,7 @@ namespace MailContainerTest.Tests
 
             dataStore
                 .Setup(m => m.GetMailContainer(It.IsAny<string>()))
-                .Returns(new MailContainer
-                {
-                    AllowedMailType = AllowedMailType.StandardLetter,
-                    Capacity = 10,
-                });
+                .Returns(new MailContainer());
 
             var requestApprovalService = new Mock<IMakeMailTransferRequestApprovalService>();
 
@@ -29,17 +25,36 @@ namespace MailContainerTest.Tests
 
             var transferService = new MailTransferService(dataStore.Object, requestApprovalService.Object);
 
-            var request = new MakeMailTransferRequest
-            {
-                MailType = MailType.StandardLetter,
-                NumberOfMailItems = 1,
-            };
-
-            var result = transferService.MakeMailTransfer(request);
+            var result = transferService.MakeMailTransfer(new MakeMailTransferRequest());
 
             dataStore.Verify(
                 m => m.UpdateMailContainer(It.IsAny<MailContainer>()),
                 Times.Once
+            );
+        }
+
+        [Test]
+        public void MakeMailTransfer_TransferRejected_DestinationContainerIsNotUpdated()
+        {
+            var dataStore = new Mock<IMailContainerDataStore>();
+
+            dataStore
+                .Setup(m => m.GetMailContainer(It.IsAny<string>()))
+                .Returns(new MailContainer());
+
+            var requestApprovalService = new Mock<IMakeMailTransferRequestApprovalService>();
+
+            requestApprovalService
+                .Setup(m => m.TransferIsAllowed(It.IsAny<MailContainer>(), It.IsAny<MakeMailTransferRequest>()))
+                .Returns(false);
+
+            var transferService = new MailTransferService(dataStore.Object, requestApprovalService.Object);
+
+            var result = transferService.MakeMailTransfer(new MakeMailTransferRequest());
+
+            dataStore.Verify(
+                m => m.UpdateMailContainer(It.IsAny<MailContainer>()),
+                Times.Never
             );
         }
     }
