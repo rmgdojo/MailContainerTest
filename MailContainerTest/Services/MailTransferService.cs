@@ -10,67 +10,22 @@ namespace MailContainerTest.Services
         {
             var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
 
-            MailContainer mailContainer = null;
+            MailContainer? mailContainer;
 
+            // TODO: inject mail container data store in constructor
             if (dataStoreType == "Backup")
             {
                 var mailContainerDataStore = new BackupMailContainerDataStore();
                 mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
-
-            } else
+            } 
+            else
             {
                 var mailContainerDataStore = new MailContainerDataStore();
                 mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
             }
 
-            var result = new MakeMailTransferResult();
-
-            switch (request.MailType)
-            {
-                case MailType.StandardLetter:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter))
-                    {
-                        result.Success = false;
-                    }
-                    break;
-
-                case MailType.LargeLetter:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter))
-                    {
-                        result.Success = false;
-                    }
-                    else if (mailContainer.Capacity < request.NumberOfMailItems)
-                    {
-                        result.Success = false;
-                    }
-                    break;
-
-                case MailType.SmallParcel:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel))
-                    {
-                        result.Success = false;
-
-                    }
-                    else if (mailContainer.Status != MailContainerStatus.Operational)
-                    {
-                        result.Success = false;
-                    }
-                    break;
-            }
-
-            if (result.Success)
+            var success = TransferIsAllowed(mailContainer, request);
+            if (success)
             {
                 mailContainer.Capacity -= request.NumberOfMailItems;
 
@@ -78,7 +33,6 @@ namespace MailContainerTest.Services
                 {
                     var mailContainerDataStore = new BackupMailContainerDataStore();
                     mailContainerDataStore.UpdateMailContainer(mailContainer);
-
                 }
                 else
                 {
@@ -87,7 +41,26 @@ namespace MailContainerTest.Services
                 }
             }
 
-            return result;
+            return new MakeMailTransferResult
+            {
+                Success = success,
+            };
+        }
+
+        private static bool TransferIsAllowed(MailContainer mailContainer, MakeMailTransferRequest request)
+        {
+            if (mailContainer is null)
+            {
+                return false;
+            }
+
+            return request.MailType switch
+            {
+                MailType.StandardLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter),
+                MailType.LargeLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter) && mailContainer.Capacity >= request.NumberOfMailItems,
+                MailType.SmallParcel => mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel) && mailContainer.Status == MailContainerStatus.Operational,
+                _ => throw new NotImplementedException(),
+            };
         }
     }
 }
