@@ -8,9 +8,9 @@ namespace MailContainerTest.Services
         {
             return request.MailType switch
             {
-                MailType.StandardLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter),
-                MailType.LargeLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter) && mailContainer.Capacity >= request.NumberOfMailItems,
-                MailType.SmallParcel => mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel) && mailContainer.Status == MailContainerStatus.Operational,
+                MailType.StandardLetter => mailContainer.AllowedMailType == AllowedMailType.StandardLetter,
+                MailType.LargeLetter => mailContainer.AllowedMailType == AllowedMailType.LargeLetter && mailContainer.Capacity >= request.NumberOfMailItems,
+                MailType.SmallParcel => mailContainer.AllowedMailType == AllowedMailType.SmallParcel && mailContainer.Status == MailContainerStatus.Operational,
                 _ => throw new NotImplementedException(),
             };
         }
