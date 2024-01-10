@@ -31,11 +31,6 @@ namespace MailContainerTest.Services
 
         private static bool TransferIsAllowed(MailContainer mailContainer, MakeMailTransferRequest request)
         {
-            if (mailContainer is null)
-            {
-                return false;
-            }
-
             return request.MailType switch
             {
                 MailType.StandardLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter),
