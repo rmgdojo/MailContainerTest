@@ -1,44 +1,26 @@
 ﻿using MailContainerTest.Data;
 using MailContainerTest.Types;
-using System.Configuration;
 
 namespace MailContainerTest.Services
 {
     public class MailTransferService : IMailTransferService
     {
+        private readonly IMailContainerDataStore _containerDataStore;
+
+        public MailTransferService(IMailContainerDataStore containerDataStore) 
+        {
+            _containerDataStore = containerDataStore;
+        }
+
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
-            var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
-
-            MailContainer? mailContainer;
-
-            // TODO: inject mail container data store in constructor
-            if (dataStoreType == "Backup")
-            {
-                var mailContainerDataStore = new BackupMailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
-            } 
-            else
-            {
-                var mailContainerDataStore = new MailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
-            }
+            var mailContainer = _containerDataStore.GetMailContainer(request.SourceMailContainerNumber);
 
             var success = TransferIsAllowed(mailContainer, request);
             if (success)
             {
                 mailContainer.Capacity -= request.NumberOfMailItems;
-
-                if (dataStoreType == "Backup")
-                {
-                    var mailContainerDataStore = new BackupMailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
-                }
-                else
-                {
-                    var mailContainerDataStore = new MailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
-                }
+                _containerDataStore.UpdateMailContainer(mailContainer);
             }
 
             return new MakeMailTransferResult
