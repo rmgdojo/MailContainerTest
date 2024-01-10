@@ -70,5 +70,56 @@ namespace MailContainerTest.Tests
 
             Assert.That(success, Is.False);
         }
+
+        [Test]
+        [TestCase(2, 1, true)]
+        [TestCase(1, 1, true)]
+        [TestCase(1, 2, false)]
+        public void TransferIsAllowed_LargeLetter_AllowsIfSufficientCapacity(int capacity, int numberOfItems, bool shouldAllow)
+        {
+            var approvalService = new MakeMailTransferRequestApprovalService();
+
+            var mailContainer = new MailContainer
+            {
+                AllowedMailType = AllowedMailType.LargeLetter,
+                Capacity = capacity,
+            };
+
+            var request = new MakeMailTransferRequest
+            {
+                MailType = MailType.LargeLetter,
+                NumberOfMailItems = numberOfItems,
+            };
+
+            var success = approvalService.TransferIsAllowed(mailContainer, request);
+
+            Assert.That(success, Is.EqualTo(shouldAllow));
+        }
+
+        [Test]
+        [TestCase(MailContainerStatus.Operational, true)]
+        [TestCase(MailContainerStatus.OutOfService, false)]
+        [TestCase(MailContainerStatus.NoTransfersIn, false)]
+        public void TransferIsAllowed_SmallParcel_AllowsIfCorrectStatus(MailContainerStatus status, bool shouldAllow)
+        {
+            var approvalService = new MakeMailTransferRequestApprovalService();
+
+            var mailContainer = new MailContainer
+            {
+                AllowedMailType = AllowedMailType.SmallParcel,
+                Capacity = 10,
+                Status = status,
+            };
+
+            var request = new MakeMailTransferRequest
+            {
+                MailType = MailType.SmallParcel,
+                NumberOfMailItems = 1,
+            };
+
+            var success = approvalService.TransferIsAllowed(mailContainer, request);
+
+            Assert.That(success, Is.EqualTo(shouldAllow));
+        }
     }
 }
