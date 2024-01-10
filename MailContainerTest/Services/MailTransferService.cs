@@ -6,17 +6,21 @@ namespace MailContainerTest.Services
     public class MailTransferService : IMailTransferService
     {
         private readonly IMailContainerDataStore _containerDataStore;
+        private readonly IMakeMailTransferRequestApprovalService _requestApprovalService;
 
-        public MailTransferService(IMailContainerDataStore containerDataStore) 
+        public MailTransferService(
+            IMailContainerDataStore containerDataStore, 
+            IMakeMailTransferRequestApprovalService requestApprovalService) 
         {
             _containerDataStore = containerDataStore;
+            _requestApprovalService = requestApprovalService;
         }
 
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
             var mailContainer = _containerDataStore.GetMailContainer(request.SourceMailContainerNumber);
 
-            var success = TransferIsAllowed(mailContainer, request);
+            var success = _requestApprovalService.TransferIsAllowed(mailContainer, request);
             if (success)
             {
                 mailContainer.Capacity -= request.NumberOfMailItems;
@@ -26,17 +30,6 @@ namespace MailContainerTest.Services
             return new MakeMailTransferResult
             {
                 Success = success,
-            };
-        }
-
-        private static bool TransferIsAllowed(MailContainer mailContainer, MakeMailTransferRequest request)
-        {
-            return request.MailType switch
-            {
-                MailType.StandardLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter),
-                MailType.LargeLetter => mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter) && mailContainer.Capacity >= request.NumberOfMailItems,
-                MailType.SmallParcel => mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel) && mailContainer.Status == MailContainerStatus.Operational,
-                _ => throw new NotImplementedException(),
             };
         }
     }
