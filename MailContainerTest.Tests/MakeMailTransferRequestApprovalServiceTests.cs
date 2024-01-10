@@ -41,7 +41,7 @@ namespace MailContainerTest.Tests
         [TestCase(2, 1, true)]
         [TestCase(1, 1, true)]
         [TestCase(1, 2, false)]
-        public void TransferIsAllowed_LargeLetter_AllowsIfSufficientCapacity(int capacity, int numberOfItems, bool shouldAllow)
+        public void TransferIsAllowed_AllowsIfSufficientCapacity(int capacity, int numberOfItems, bool shouldAllow)
         {
             var approvalService = new MakeMailTransferRequestApprovalService();
 
@@ -66,7 +66,7 @@ namespace MailContainerTest.Tests
         [TestCase(MailContainerStatus.Operational, true)]
         [TestCase(MailContainerStatus.OutOfService, false)]
         [TestCase(MailContainerStatus.NoTransfersIn, false)]
-        public void TransferIsAllowed_SmallParcel_AllowsIfCorrectStatus(MailContainerStatus status, bool shouldAllow)
+        public void TransferIsAllowed_AllowsIfCorrectStatus(MailContainerStatus status, bool shouldAllow)
         {
             var approvalService = new MakeMailTransferRequestApprovalService();
 

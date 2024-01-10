@@ -9,7 +9,7 @@ namespace MailContainerTest.Tests
     public class MailTransferServiceTests
     {
         [Test]
-        public void MakeMailTransfer_TransferAllowed_DestinationContainerIsUpdated()
+        public void MakeMailTransfer_TransferAllowed_ContainersAreUpdated()
         {
             var dataStore = new Mock<IMailContainerDataStore>();
 
@@ -34,7 +34,7 @@ namespace MailContainerTest.Tests
         }
 
         [Test]
-        public void MakeMailTransfer_TransferRejected_DestinationContainerIsNotUpdated()
+        public void MakeMailTransfer_TransferRejected_ContainersAreNotUpdated()
         {
             var dataStore = new Mock<IMailContainerDataStore>();
 
