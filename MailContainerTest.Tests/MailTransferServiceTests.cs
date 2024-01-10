@@ -29,7 +29,7 @@ namespace MailContainerTest.Tests
 
             dataStore.Verify(
                 m => m.UpdateMailContainer(It.IsAny<MailContainer>()),
-                Times.Once
+                Times.Exactly(2)
             );
         }
 

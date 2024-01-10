@@ -18,13 +18,19 @@ namespace MailContainerTest.Services
 
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
-            var mailContainer = _containerDataStore.GetMailContainer(request.SourceMailContainerNumber);
+            var sourceMailContainer = _containerDataStore.GetMailContainer(request.SourceMailContainerNumber);
 
-            var success = _requestApprovalService.TransferIsAllowed(mailContainer, request);
+            var success = _requestApprovalService.TransferIsAllowed(sourceMailContainer, request);
             if (success)
             {
-                mailContainer.Capacity -= request.NumberOfMailItems;
-                _containerDataStore.UpdateMailContainer(mailContainer);
+                sourceMailContainer.Capacity += request.NumberOfMailItems;
+
+                _containerDataStore.UpdateMailContainer(sourceMailContainer);
+
+                var destinationMailContainer = _containerDataStore.GetMailContainer(request.DestinationMailContainerNumber);
+                destinationMailContainer.Capacity -= request.NumberOfMailItems;
+
+                _containerDataStore.UpdateMailContainer(destinationMailContainer);
             }
 
             return new MakeMailTransferResult
