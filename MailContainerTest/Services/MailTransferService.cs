@@ -8,11 +8,15 @@ namespace MailContainerTest.Services
     {
         private readonly IMailContainerDataStoreFactory _mailContainerDataStoreFactory;
         private readonly ICheckMailContainerStatus _checkMailContainerStatus;
+        private readonly IMailTypeChecker _mailTypeChecker;
 
-        public MailTransferService(IMailContainerDataStoreFactory mailContainerDataStoreFactory, ICheckMailContainerStatus checkMailContainerStatus)
+        public MailTransferService(IMailContainerDataStoreFactory mailContainerDataStoreFactory,
+                                   ICheckMailContainerStatus checkMailContainerStatus,
+                                   IMailTypeChecker mailTypeChecker)
         {
             _mailContainerDataStoreFactory = mailContainerDataStoreFactory;
             _checkMailContainerStatus = checkMailContainerStatus;
+            _mailTypeChecker = mailTypeChecker;
         }
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
@@ -30,50 +34,8 @@ namespace MailContainerTest.Services
                 return result;
             }
 
-            switch (request.MailType)
-            {
-                case MailType.StandardLetter:
-                    if (sourceMailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!sourceMailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter))
-                    {
-                        result.Success = false;
-                    }
-                    break;
+            result = _mailTypeChecker.CheckMail(request.MailType, sourceMailContainer);
 
-                case MailType.LargeLetter:
-                    if (sourceMailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!sourceMailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter))
-                    {
-                        result.Success = false;
-                    }
-                    else if (sourceMailContainer.Capacity < request.NumberOfMailItems)
-                    {
-                        result.Success = false;
-                    }
-                    break;
-
-                case MailType.SmallParcel:
-                    if (sourceMailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!sourceMailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel))
-                    {
-                        result.Success = false;
-
-                    }
-                    else if (sourceMailContainer.Status != MailContainerStatus.Operational)
-                    {
-                        result.Success = false;
-                    }
-                    break;
-            }
 
             if (result.Success)
             {
