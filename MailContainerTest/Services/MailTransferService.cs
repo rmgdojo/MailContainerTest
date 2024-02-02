@@ -6,15 +6,19 @@ namespace MailContainerTest.Services
 {
     public class MailTransferService : IMailTransferService
     {
-        public MailTransferService()
-        {
+        private readonly IMailContainerDataStoreFactory _mailContainerDataStoreFactory;
 
+        public MailTransferService(IMailContainerDataStoreFactory mailContainerDataStoreFactory)
+        {
+            _mailContainerDataStoreFactory = mailContainerDataStoreFactory;
         }
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
-            var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
 
-            MailContainer mailContainer = null;
+            var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
+            var mailContainerStoreFactory = _mailContainerDataStoreFactory.CreateMailContainerDataStore(dataStoreType);
+
+            var sourceMailContainer = mailContainerStoreFactory.GetMailContainer(request.SourceMailContainerNumber);
 
             if (dataStoreType == "Backup")
             {
@@ -24,7 +28,7 @@ namespace MailContainerTest.Services
             } else
             {
                 var mailContainerDataStore = new MailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
+                sourceMailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
             }
 
             var result = new MakeMailTransferResult();
@@ -32,42 +36,42 @@ namespace MailContainerTest.Services
             switch (request.MailType)
             {
                 case MailType.StandardLetter:
-                    if (mailContainer == null)
+                    if (sourceMailContainer == null)
                     {
                         result.Success = false;
                     }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter))
+                    else if (!sourceMailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter))
                     {
                         result.Success = false;
                     }
                     break;
 
                 case MailType.LargeLetter:
-                    if (mailContainer == null)
+                    if (sourceMailContainer == null)
                     {
                         result.Success = false;
                     }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter))
+                    else if (!sourceMailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter))
                     {
                         result.Success = false;
                     }
-                    else if (mailContainer.Capacity < request.NumberOfMailItems)
+                    else if (sourceMailContainer.Capacity < request.NumberOfMailItems)
                     {
                         result.Success = false;
                     }
                     break;
 
                 case MailType.SmallParcel:
-                    if (mailContainer == null)
+                    if (sourceMailContainer == null)
                     {
                         result.Success = false;
                     }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel))
+                    else if (!sourceMailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel))
                     {
                         result.Success = false;
 
                     }
-                    else if (mailContainer.Status != MailContainerStatus.Operational)
+                    else if (sourceMailContainer.Status != MailContainerStatus.Operational)
                     {
                         result.Success = false;
                     }
@@ -76,18 +80,18 @@ namespace MailContainerTest.Services
 
             if (result.Success)
             {
-                mailContainer.Capacity -= request.NumberOfMailItems;
+                sourceMailContainer.Capacity -= request.NumberOfMailItems;
 
                 if (dataStoreType == "Backup")
                 {
                     var mailContainerDataStore = new BackupMailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
+                    mailContainerDataStore.UpdateMailContainer(sourceMailContainer);
 
                 }
                 else
                 {
                     var mailContainerDataStore = new MailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
+                    mailContainerDataStore.UpdateMailContainer(sourceMailContainer);
                 }
             }
 
