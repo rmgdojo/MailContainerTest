@@ -7,10 +7,12 @@ namespace MailContainerTest.Services
     public class MailTransferService : IMailTransferService
     {
         private readonly IMailContainerDataStoreFactory _mailContainerDataStoreFactory;
+        private readonly ICheckMailContainerStatus _checkMailContainerStatus;
 
-        public MailTransferService(IMailContainerDataStoreFactory mailContainerDataStoreFactory)
+        public MailTransferService(IMailContainerDataStoreFactory mailContainerDataStoreFactory, ICheckMailContainerStatus checkMailContainerStatus)
         {
             _mailContainerDataStoreFactory = mailContainerDataStoreFactory;
+            _checkMailContainerStatus = checkMailContainerStatus;
         }
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
@@ -20,18 +22,13 @@ namespace MailContainerTest.Services
 
             var sourceMailContainer = mailContainerStoreFactory.GetMailContainer(request.SourceMailContainerNumber);
 
-            if (dataStoreType == "Backup")
-            {
-                var mailContainerDataStore = new BackupMailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
 
-            } else
+            MakeMailTransferResult result = _checkMailContainerStatus.CheckContainerStatus(sourceMailContainer);
+
+            if (!result.Success)
             {
-                var mailContainerDataStore = new MailContainerDataStore();
-                sourceMailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
+                return result;
             }
-
-            var result = new MakeMailTransferResult();
 
             switch (request.MailType)
             {
