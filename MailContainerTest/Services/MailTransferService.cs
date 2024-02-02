@@ -6,6 +6,10 @@ namespace MailContainerTest.Services
 {
     public class MailTransferService : IMailTransferService
     {
+        public MailTransferService()
+        {
+
+        }
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
             var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
