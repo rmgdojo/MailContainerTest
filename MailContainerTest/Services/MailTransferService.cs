@@ -27,34 +27,35 @@ namespace MailContainerTest.Services
             var sourceMailContainer = mailContainerStoreFactory.GetMailContainer(request.SourceMailContainerNumber);
 
 
-            MakeMailTransferResult result = _checkMailContainerStatus.CheckContainerStatus(sourceMailContainer);
+            MakeMailTransferResult sourceResultCheck = _checkMailContainerStatus.CheckContainerStatus(sourceMailContainer);
 
-            if (!result.Success)
+            if (!sourceResultCheck.Success)
             {
-                return result;
+                return sourceResultCheck;
             }
 
-            result = _mailTypeChecker.CheckMail(request.MailType, sourceMailContainer);
+            sourceResultCheck = _mailTypeChecker.CheckMail(request.MailType, sourceMailContainer);
 
 
-            if (result.Success)
+            if (sourceResultCheck.Success)
             {
+                var destinationMailContainer = mailContainerStoreFactory.GetMailContainer(request.DestinationMailContainerNumber);
+
+                MakeMailTransferResult destinationResultCheck = _checkMailContainerStatus.CheckContainerStatus(destinationMailContainer);
+
+                if (!destinationResultCheck.Success)
+                {
+                    return destinationResultCheck;
+                }
+
                 sourceMailContainer.Capacity -= request.NumberOfMailItems;
+                destinationMailContainer.Capacity += request.NumberOfMailItems;
 
-                if (dataStoreType == "Backup")
-                {
-                    var mailContainerDataStore = new BackupMailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(sourceMailContainer);
-
-                }
-                else
-                {
-                    var mailContainerDataStore = new MailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(sourceMailContainer);
-                }
+                mailContainerStoreFactory.UpdateMailContainer(sourceMailContainer);
+                mailContainerStoreFactory.UpdateMailContainer(destinationMailContainer);
             }
 
-            return result;
+            return sourceResultCheck;
         }
     }
 }
